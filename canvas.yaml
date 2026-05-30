@@ -1,0 +1,195 @@
+# DE-Guardian: Schema Drift Recovery
+# Import: superplane canvases create --file canvas.yaml
+# Before apply: replace REPLACE_CLAUDE_INTEGRATION_ID with your Claude integration UUID
+# After publish: copy Webhook URL → SUPERPLANE_WEBHOOK_URL on Render (web + cron)
+
+apiVersion: "v1"
+kind: "Canvas"
+metadata:
+  name: "DE-Guardian: Schema Drift Recovery"
+  description: "AI incident response for data pipelines — investigate, approve, remediate"
+  isTemplate: false
+spec:
+  nodes:
+    - id: "pipeline-failed"
+      name: "Pipeline Failed"
+      type: "TYPE_TRIGGER"
+      component: "webhook"
+      configuration: {}
+      position:
+        x: 120
+        y: 250
+      isCollapsed: false
+      paused: false
+
+    - id: "claude-investigate"
+      name: "Claude: Investigate"
+      type: "TYPE_ACTION"
+      component: "claude.textPrompt"
+      configuration:
+        model: "claude-sonnet-4-20250514"
+        maxTokens: 2048
+        systemMessage: |
+          You are an on-call data-platform incident investigator. A pipeline run just failed.
+          Using ONLY the evidence in the event, produce a root-cause analysis.
+          Return STRICT JSON only, no markdown fences, with keys:
+          root_cause, evidence (array), blast_radius, correlated_change, recommended_remediation,
+          remediation_is_safe_to_automate (boolean), confidence (low|medium|high), runbook (array).
+          Tie failures to recent_changes when one fits. Be conservative on automation.
+        prompt: |
+          Event:
+          {{ root().data.body }}
+
+          Return the JSON object only.
+      position:
+        x: 720
+        y: 250
+      isCollapsed: false
+      integration:
+        id: "REPLACE_CLAUDE_INTEGRATION_ID"
+      paused: false
+
+    - id: "approval-gate"
+      name: "Approval Gate"
+      type: "TYPE_ACTION"
+      component: "approval"
+      configuration:
+        items:
+          - type: "anyone"
+      position:
+        x: 1320
+        y: 250
+      isCollapsed: false
+      paused: false
+
+    - id: "heal-pipeline"
+      name: "Heal Pipeline"
+      type: "TYPE_ACTION"
+      component: "http"
+      configuration:
+        method: "POST"
+        url: "{{ root().data.body.context.heal_url }}"
+        retry:
+          enabled: false
+        timeoutSeconds: 30
+      position:
+        x: 1920
+        y: 100
+      isCollapsed: false
+      paused: false
+
+    - id: "save-incident"
+      name: "Save Incident"
+      type: "TYPE_ACTION"
+      component: "upsertMemory"
+      configuration:
+        namespace: "de-guardian-incidents"
+        matchList:
+          - name: "run_id"
+            value: "{{ root().data.body.run_id }}"
+        valueList:
+          - name: "run_id"
+            value: "{{ root().data.body.run_id }}"
+          - name: "job_name"
+            value: "{{ root().data.body.job_name }}"
+          - name: "failure_mode"
+            value: "{{ root().data.body.error.failure_mode }}"
+          - name: "severity"
+            value: "{{ root().data.body.severity }}"
+          - name: "failed_at"
+            value: "{{ root().data.body.failed_at }}"
+          - name: "rca"
+            value: "{{ $['Claude: Investigate'].data.text }}"
+          - name: "status"
+            value: "remediated"
+          - name: "heal_url"
+            value: "{{ root().data.body.context.heal_url }}"
+          - name: "run_url"
+            value: "{{ root().data.body.context.run_url }}"
+      position:
+        x: 2520
+        y: 100
+      isCollapsed: false
+      paused: false
+
+    - id: "save-rejected"
+      name: "Save Rejected"
+      type: "TYPE_ACTION"
+      component: "upsertMemory"
+      configuration:
+        namespace: "de-guardian-incidents"
+        matchList:
+          - name: "run_id"
+            value: "{{ root().data.body.run_id }}"
+        valueList:
+          - name: "run_id"
+            value: "{{ root().data.body.run_id }}"
+          - name: "job_name"
+            value: "{{ root().data.body.job_name }}"
+          - name: "failure_mode"
+            value: "{{ root().data.body.error.failure_mode }}"
+          - name: "severity"
+            value: "{{ root().data.body.severity }}"
+          - name: "failed_at"
+            value: "{{ root().data.body.failed_at }}"
+          - name: "rca"
+            value: "{{ $['Claude: Investigate'].data.text }}"
+          - name: "status"
+            value: "rejected — paging on-call"
+          - name: "run_url"
+            value: "{{ root().data.body.context.run_url }}"
+      position:
+        x: 1920
+        y: 400
+      isCollapsed: false
+      paused: false
+
+    - id: "console-reheal"
+      name: "Console: Re-run"
+      type: "TYPE_TRIGGER"
+      component: "start"
+      configuration:
+        templates:
+          - name: "rerun"
+            parameters: []
+      position:
+        x: 120
+        y: 550
+      isCollapsed: false
+      paused: false
+
+    - id: "console-rerun-http"
+      name: "Console: POST /run"
+      type: "TYPE_ACTION"
+      component: "http"
+      configuration:
+        method: "POST"
+        url: "{{ root().data.body.run_url }}"
+        retry:
+          enabled: false
+        timeoutSeconds: 30
+      position:
+        x: 720
+        y: 550
+      isCollapsed: false
+      paused: false
+
+  edges:
+    - sourceId: "pipeline-failed"
+      targetId: "claude-investigate"
+      channel: "default"
+    - sourceId: "claude-investigate"
+      targetId: "approval-gate"
+      channel: "default"
+    - sourceId: "approval-gate"
+      targetId: "heal-pipeline"
+      channel: "approved"
+    - sourceId: "heal-pipeline"
+      targetId: "save-incident"
+      channel: "default"
+    - sourceId: "approval-gate"
+      targetId: "save-rejected"
+      channel: "rejected"
+    - sourceId: "console-reheal"
+      targetId: "console-rerun-http"
+      channel: "default"

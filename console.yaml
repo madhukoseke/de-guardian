@@ -1,0 +1,88 @@
+# DE-Guardian Console — incident audit table (matches preview-env-digitalocean pattern)
+# Apply after canvas is created; set metadata.canvasId to your canvas UUID.
+
+apiVersion: v1
+kind: Console
+metadata:
+  canvasId: "REPLACE_CANVAS_ID"
+  name: "DE-Guardian: Schema Drift Recovery"
+spec:
+  panels:
+    - id: header
+      type: markdown
+      content:
+        title: DE-Guardian
+        body: >
+          ## Pipeline Incident Investigator
+
+
+          When `daily_revenue_aggregation` fails, the Render demo service POSTs a `pipeline.failed`
+          event to this Canvas. **Claude** investigates, a human **approves**, then **POST /heal**
+          clears the failure mode.
+
+
+          | Demo command | Action |
+          | --- | --- |
+          | `POST /break?mode=schema_drift` | Arm schema drift |
+          | `POST /run` | Run pipeline (fails + triggers webhook) |
+          | `POST /heal` | Remediate (Canvas calls this after approval) |
+
+
+          Repo: [github.com/madhukoseke/de-guardian](https://github.com/madhukoseke/de-guardian)
+    - id: incidents-table
+      type: table
+      content:
+        title: Recent Incidents
+        dataSource:
+          kind: memory
+          namespace: de-guardian-incidents
+        render:
+          kind: table
+          columns:
+            - field: run_id
+              format: text
+              label: Run ID
+            - field: job_name
+              format: text
+              label: Job
+            - field: failure_mode
+              format: badge
+              label: Mode
+            - field: severity
+              format: badge
+              label: Severity
+            - field: status
+              format: text
+              label: Status
+            - field: failed_at
+              format: text
+              label: Failed At
+            - field: run_url
+              format: link
+              href: "{{ run_url }}"
+              label: Run URL
+          rowActions:
+            - confirm: "Re-run pipeline for {{ run_id }}?"
+              icon: play
+              kind: trigger
+              label: Re-run
+              node: console-reheal
+              payload:
+                run_url: "{{ run_url }}"
+              template: rerun
+              variant: primary
+  layout:
+    - i: header
+      x: 0
+      "y": 0
+      w: 12
+      h: 5
+      minW: 4
+      minH: 3
+    - i: incidents-table
+      x: 0
+      "y": 5
+      w: 12
+      h: 8
+      minW: 6
+      minH: 4

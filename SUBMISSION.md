@@ -9,8 +9,16 @@
 | Item | URL |
 | --- | --- |
 | GitHub | https://github.com/madhukoseke/de-guardian |
+| Launch in SuperPlane | http://app.superplane.com/install?repo=github.com/madhukoseke/de-guardian |
+| Reference app | https://github.com/superplanehq/app_preview-env-digitalocean |
 | Render web | `https://bash-script-funeral.onrender.com` (set after blueprint deploy) |
-| SuperPlane Canvas | *Add canvas URL from event instance* |
+| SuperPlane Canvas | *Add canvas URL after import* |
+
+## Track 1 deliverables
+
+- [x] `canvas.yaml` — DE-Guardian workflow
+- [x] `console.yaml` — incident memory table
+- [x] README with Launch in SuperPlane badge
 
 ## One-liner
 

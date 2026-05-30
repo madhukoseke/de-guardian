@@ -1,6 +1,21 @@
 # DE-Guardian — SuperPlane Canvas Setup (event day)
 
-Build on the **event-hosted** SuperPlane instance. Get URL + API token at check-in.
+Official rules: [`HACKATHON.md`](./HACKATHON.md) · Reference app: [app_preview-env-digitalocean](https://github.com/superplanehq/app_preview-env-digitalocean)
+
+## Fast path: import YAML (Track 1)
+
+```bash
+superplane connect https://app.superplane.com <API_TOKEN>
+./scripts/import-app.sh
+```
+
+Edit `canvas.yaml`: replace `REPLACE_CLAUDE_INTEGRATION_ID`. Edit `console.yaml`: set `REPLACE_CANVAS_ID` to your canvas UUID after create.
+
+---
+
+## Manual UI build (if import fails)
+
+Build on **app.superplane.com** org `hackatonsf-<team-name>`. Get API token at check-in.
 
 ## Phase A — MVP (first green run)
 

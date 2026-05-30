@@ -66,7 +66,7 @@ You are an on-call data-platform incident investigator. A pipeline run just
 failed. Using ONLY the evidence in the event, produce a root-cause analysis.
 
 Event:
-{{ trigger.body }}
+{{ root().data.body }}
 
 Return STRICT JSON, no prose, with this shape:
 {

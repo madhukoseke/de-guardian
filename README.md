@@ -1,6 +1,8 @@
 # DE-Guardian — Pipeline Incident Investigator
 
-**SuperPlane Hackathon 2026** · *Bash Script Funeral /w Render*
+[![Launch in SuperPlane](http://superplane.com/badges/launch-in-superplane.svg)](http://app.superplane.com/install?repo=github.com/madhukoseke/de-guardian)
+
+**SuperPlane Hackathon 2026** · *Bash Script Funeral /w Render* · **Track 1: Canvas + Console**
 
 AI-powered incident response for data pipelines. A simulated fintech job (`daily_revenue_aggregation`) fails on cue with realistic DataOps incidents. On failure it emits a rich event to a **SuperPlane Canvas**, where a Claude agent investigates root cause, a human approves remediation, and the pipeline self-heals — every step logged.
 
@@ -67,17 +69,31 @@ https://github.com/madhukoseke/de-guardian
    - `SERVICE_BASE_URL` — e.g. `https://bash-script-funeral.onrender.com` (for Canvas heal step)
    - `DATABASE_URL` — auto-linked from blueprint
 
-## SuperPlane Canvas setup
+## SuperPlane App (Track 1 submission)
 
-Build incrementally on the event-hosted instance:
+This repo follows the [preview-env-digitalocean](https://github.com/superplanehq/app_preview-env-digitalocean) layout:
 
-1. **Webhook** ← this service POSTs `pipeline.failed` events
-2. **Claude** ← investigation prompt in `canvas-spec.md`
-3. **Approval** ← human sign-off before remediation
-4. **HTTP Request** → `POST {{ context.heal_url }}` (full URL in payload)
-5. **Slack** (optional) ← RCA + outcome
+| File | Purpose |
+| --- | --- |
+| [`canvas.yaml`](./canvas.yaml) | Webhook → Claude → Approval → Heal → Memory |
+| [`console.yaml`](./console.yaml) | Incident table + re-run from Console |
+| [`HACKATHON.md`](./HACKATHON.md) | Official hackathon rules (from gist) |
 
-Canvas name for submission: **DE-Guardian: Schema Drift Recovery**
+### Import
+
+1. Create org `hackatonsf-<team-name>` on [app.superplane.com](https://app.superplane.com)
+2. Click **Launch in SuperPlane** (badge above) or:
+
+```bash
+superplane connect https://app.superplane.com <API_TOKEN>
+superplane canvases create --file canvas.yaml
+```
+
+3. Replace `REPLACE_CLAUDE_INTEGRATION_ID` in `canvas.yaml` with your Claude integration UUID
+4. Set `REPLACE_CANVAS_ID` in `console.yaml`, then apply console in UI or CLI
+5. Copy Webhook URL from **Pipeline Failed** node → `SUPERPLANE_WEBHOOK_URL` on Render
+
+Build incrementally in UI if import fails — see [`CANVAS_SETUP.md`](./CANVAS_SETUP.md) and [`canvas-spec.md`](./canvas-spec.md).
 
 ## Environment variables
 
