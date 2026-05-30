@@ -28,11 +28,6 @@ app = FastAPI(title="Bash Script Funeral — Pipeline Demo", version="1.0.0")
 STATE = {"mode": "healthy", "last_run": None}
 
 
-@app.on_event("startup")
-def _startup() -> None:
-    db.init_db()
-
-
 @app.get("/")
 def root():
     return {

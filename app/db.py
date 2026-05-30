@@ -21,6 +21,7 @@ _mem_lock = threading.Lock()
 _mem_runs: list[dict] = []
 
 _pg = None
+_db_ready = False
 if DATABASE_URL:
     try:
         import psycopg
@@ -32,35 +33,46 @@ if DATABASE_URL:
 def _conn():
     # Render Postgres external URLs sometimes use the postgres:// scheme.
     url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL else None
-    return _pg.connect(url, autocommit=True)
+    return _pg.connect(url, autocommit=True, connect_timeout=10)
 
 
 def init_db() -> None:
-    if not (_pg and DATABASE_URL):
+    """Create tables if Postgres is available. Never raises — falls back to memory."""
+    global _db_ready
+    if _db_ready or not (_pg and DATABASE_URL):
         return
-    with _conn() as c:
-        c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS pipeline_runs (
-                run_id        TEXT PRIMARY KEY,
-                job_name      TEXT,
-                status        TEXT,
-                started_at    TIMESTAMPTZ,
-                finished_at   TIMESTAMPTZ,
-                duration_ms   INTEGER,
-                rows_in       INTEGER,
-                rows_out      INTEGER,
-                failure_mode  TEXT,
-                error_type    TEXT,
-                error_message TEXT,
-                payload       JSONB
+    try:
+        with _conn() as c:
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pipeline_runs (
+                    run_id        TEXT PRIMARY KEY,
+                    job_name      TEXT,
+                    status        TEXT,
+                    started_at    TIMESTAMPTZ,
+                    finished_at   TIMESTAMPTZ,
+                    duration_ms   INTEGER,
+                    rows_in       INTEGER,
+                    rows_out      INTEGER,
+                    failure_mode  TEXT,
+                    error_type    TEXT,
+                    error_message TEXT,
+                    payload       JSONB
+                )
+                """
             )
-            """
-        )
+        _db_ready = True
+    except Exception:  # pragma: no cover - Render cold-start / transient DB
+        _db_ready = False
+
+
+def _pg_available() -> bool:
+    init_db()
+    return _db_ready
 
 
 def save_run(run: dict[str, Any]) -> None:
-    if _pg and DATABASE_URL:
+    if _pg_available():
         with _conn() as c:
             c.execute(
                 """
@@ -86,7 +98,7 @@ def save_run(run: dict[str, Any]) -> None:
 
 
 def recent_runs(limit: int = 20) -> list[dict]:
-    if _pg and DATABASE_URL:
+    if _pg_available():
         with _conn() as c:
             cur = c.execute(
                 "SELECT payload FROM pipeline_runs ORDER BY started_at DESC LIMIT %s",
