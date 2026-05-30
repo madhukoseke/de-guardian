@@ -1,0 +1,44 @@
+{
+  "event": "pipeline.failed",
+  "severity": "P2",
+  "job_name": "daily_revenue_aggregation",
+  "run_id": "run_demo_schema_drift",
+  "failed_at": "2026-05-30T06:00:01Z",
+  "duration_ms": 42,
+  "rows_in": 5000,
+  "rows_out": 0,
+  "error": {
+    "type": "SchemaDrift",
+    "message": "KeyError: 'amount' — field missing from source payload (found 'txn_amount')",
+    "failure_mode": "schema_drift",
+    "offending_record": {
+      "transaction_id": "demo-txn-001",
+      "merchant": "quiet-store",
+      "currency": "USD",
+      "txn_amount": 215.58
+    },
+    "traceback": "  File \"app/pipeline.py\", line 120, in transform\n    amount = record[\"amount\"]\nKeyError: 'amount'"
+  },
+  "context": {
+    "last_success_at": "2026-05-29T06:00:00Z",
+    "recent_changes": [
+      {
+        "sha": "a3f91c2",
+        "author": "data-platform-bot",
+        "when": "2h ago",
+        "message": "feat(ingest): bump source-api client to v3 (response schema changed)"
+      },
+      {
+        "sha": "7d20e5b",
+        "author": "mkoseke",
+        "when": "yesterday",
+        "message": "chore(dbt): tighten revenue column to NOT NULL"
+      }
+    ],
+    "service": "bash-script-funeral",
+    "heal_endpoint": "/heal",
+    "heal_url": "https://bash-script-funeral.onrender.com/heal",
+    "run_url": "https://bash-script-funeral.onrender.com/run",
+    "status_url": "https://bash-script-funeral.onrender.com/status"
+  }
+}
