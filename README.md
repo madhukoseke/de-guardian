@@ -53,9 +53,13 @@ No `DATABASE_URL`? In-memory store. No `SUPERPLANE_WEBHOOK_URL`? Incident JSON i
 
 **Live demo:** `schema_drift` — the agent correlates the error to the "source-api v3" commit from `recent_changes`.
 
+## Repository
+
+https://github.com/madhukoseke/de-guardian
+
 ## Deploy to Render
 
-1. Push this repo to GitHub (public for judges).
+1. Repo is on GitHub (public for judges). See [`RENDER_DEPLOY.md`](./RENDER_DEPLOY.md).
 2. Render: **New + → Blueprint** → connect repo. [`render.yaml`](./render.yaml) provisions Web + Cron + Postgres.
 3. Create the SuperPlane **Webhook** trigger (see `canvas-spec.md`); copy its URL.
 4. Set on **web** and **cron** services:
