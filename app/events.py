@@ -11,11 +11,12 @@ import hashlib
 import hmac
 import os
 import json
+import urllib.error
 import urllib.request
 from typing import Any
 
 SUPERPLANE_WEBHOOK_URL = os.environ.get("SUPERPLANE_WEBHOOK_URL")
-SUPERPLANE_WEBHOOK_SECRET = os.environ.get("SUPERPLANE_WEBHOOK_SECRET")
+SUPERPLANE_WEBHOOK_SECRET = (os.environ.get("SUPERPLANE_WEBHOOK_SECRET") or "").strip() or None
 SUPERPLANE_WEBHOOK_SIGNATURE_HEADER = os.environ.get(
     "SUPERPLANE_WEBHOOK_SIGNATURE_HEADER", "X-Signature-256"
 )
@@ -78,5 +79,12 @@ def emit_incident(run: dict[str, Any]) -> dict[str, Any]:
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return {"sent": True, "status": resp.status, "incident": incident}
+    except urllib.error.HTTPError as e:  # pragma: no cover
+        body = e.read().decode("utf-8", errors="replace")[:500]
+        return {
+            "sent": False,
+            "reason": f"HTTP {e.code}: {body or e.reason}",
+            "incident": incident,
+        }
     except Exception as e:  # pragma: no cover
         return {"sent": False, "reason": str(e), "incident": incident}

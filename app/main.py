@@ -75,7 +75,12 @@ def run():
 
     if result.status == "failed":
         emission = emit_incident(run_dict)
-        return {"run": run_dict, "incident_emitted": emission.get("sent"), "incident": emission.get("incident")}
+        return {
+            "run": run_dict,
+            "incident_emitted": emission.get("sent"),
+            "incident_error": emission.get("reason"),
+            "incident": emission.get("incident"),
+        }
     return {"run": run_dict}
 
 
