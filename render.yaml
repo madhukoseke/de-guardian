@@ -30,6 +30,8 @@ services:
           property: connectionString
       - key: SUPERPLANE_WEBHOOK_URL
         sync: false   # paste your Canvas webhook URL in the dashboard
+      - key: SUPERPLANE_WEBHOOK_SECRET
+        sync: false   # HMAC key from the Pipeline Failed node (Reset Signature Key)
       - key: SERVICE_BASE_URL
         sync: false   # e.g. https://bash-script-funeral.onrender.com
       - key: RENDER_SERVICE_NAME
@@ -38,7 +40,7 @@ services:
   - type: cron
     name: daily-revenue-aggregation
     runtime: python
-    plan: free
+    plan: starter   # cron jobs don't support free; ~$1/mo minimum
     schedule: "0 6 * * *"   # 06:00 UTC daily; change to "*/10 * * * *" to demo
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python -m jobs.scheduled_run"
@@ -48,6 +50,8 @@ services:
           name: pipeline-runs-db
           property: connectionString
       - key: SUPERPLANE_WEBHOOK_URL
+        sync: false
+      - key: SUPERPLANE_WEBHOOK_SECRET
         sync: false
       - key: SERVICE_BASE_URL
         sync: false

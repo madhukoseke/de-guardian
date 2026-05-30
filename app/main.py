@@ -40,6 +40,7 @@ def root():
         "armed_mode": STATE["mode"],
         "endpoints": ["/run", "/break?mode=", "/heal", "/status", "/runs", "/modes", "/health"],
         "webhook_configured": bool(os.environ.get("SUPERPLANE_WEBHOOK_URL")),
+        "webhook_signature_configured": bool(os.environ.get("SUPERPLANE_WEBHOOK_SECRET")),
     }
 
 

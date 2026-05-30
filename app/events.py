@@ -7,13 +7,24 @@ record, recent changes, and the last successful run.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 import json
 import urllib.request
 from typing import Any
 
 SUPERPLANE_WEBHOOK_URL = os.environ.get("SUPERPLANE_WEBHOOK_URL")
+SUPERPLANE_WEBHOOK_SECRET = os.environ.get("SUPERPLANE_WEBHOOK_SECRET")
+SUPERPLANE_WEBHOOK_SIGNATURE_HEADER = os.environ.get(
+    "SUPERPLANE_WEBHOOK_SIGNATURE_HEADER", "X-Signature-256"
+)
 SERVICE_BASE_URL = os.environ.get("SERVICE_BASE_URL", "http://localhost:8000").rstrip("/")
+
+
+def sign_webhook_payload(payload: bytes, secret: str) -> str:
+    """HMAC-SHA256 hex digest, matching SuperPlane's openssl example."""
+    return hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
 
 def build_incident(run: dict[str, Any]) -> dict[str, Any]:
@@ -52,11 +63,16 @@ def emit_incident(run: dict[str, Any]) -> dict[str, Any]:
         # caller can still surface/log it.
         return {"sent": False, "reason": "SUPERPLANE_WEBHOOK_URL not set", "incident": incident}
 
-    data = json.dumps(incident).encode("utf-8")
+    data = json.dumps(incident, separators=(",", ":")).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if SUPERPLANE_WEBHOOK_SECRET:
+        signature = sign_webhook_payload(data, SUPERPLANE_WEBHOOK_SECRET)
+        headers[SUPERPLANE_WEBHOOK_SIGNATURE_HEADER] = f"sha256={signature}"
+
     req = urllib.request.Request(
         SUPERPLANE_WEBHOOK_URL,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
