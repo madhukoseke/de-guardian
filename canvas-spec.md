@@ -110,7 +110,24 @@ Then re-run to prove green: `POST .../run`.
 ## Node 5 — Notify
 
 - **Slack** (or Discord) component. Post the RCA + the action taken + a link
-  back to the SuperPlane run. On reject, post "left broken, paging on-call."
+  back to the SuperPlane run.
+
+### Reject path (required for full workflow)
+
+Wire **Approval → rejected** to a second Notify node (or a Filter + Notify branch):
+
+```
+[3 Approval] --approved--> [4 Heal HTTP] --> [5 Notify: healed]
+            --rejected--> [5b Notify: "left broken, paging on-call"]
+```
+
+Reject message template:
+
+```
+DE-Guardian: remediation rejected for {{ trigger.body.run_id }}.
+Root cause (unresolved): {{ Claude.root_cause }}
+Pipeline remains in failure mode. Paging on-call.
+```
 
 ---
 
@@ -132,4 +149,4 @@ Then re-run to prove green: `POST .../run`.
 3. **(60s)** Flip to SuperPlane: the Canvas already fired. Walk the graph: trigger → Claude's RCA (it fingered the 2h-old schema commit) → the approval card.
 4. **(30s)** Approve → Node 4 heals → `POST /run` → green.
 5. **(25s)** Show the run-history audit trail. "Agent investigated, human approved, every step logged — that's how you put an agent near prod safely."
-6. **(15s)** "One script buried. The rest of the graveyard is next." Name your Render services.
+6. **(15s)** "One script buried. DE-Guardian is the first workflow for OneAISpace." Name Render services (web + cron + postgres).
