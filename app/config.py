@@ -33,7 +33,14 @@ RUNS_LIMIT_MAX = 200
 
 
 def validate_startup() -> list[str]:
-    """Return fatal configuration errors (empty list = OK)."""
+    """
+    Validate runtime configuration and collect fatal startup error messages.
+    
+    Performs production-specific checks and returns configuration issues that must be fixed before starting in production.
+    
+    Returns:
+        list[str]: Fatal configuration error messages; empty list when no fatal issues are found.
+    """
     errors: list[str] = []
     if IS_PRODUCTION:
         if not API_KEY:
@@ -48,5 +55,10 @@ def validate_startup() -> list[str]:
 
 
 def auth_required() -> bool:
-    """Mutating endpoints require credentials when an API key is configured."""
+    """
+    Determine whether mutating endpoints require credentials based on configuration.
+    
+    Returns:
+        True if an API key is configured, False otherwise.
+    """
     return bool(API_KEY)

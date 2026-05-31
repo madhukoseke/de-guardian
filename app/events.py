@@ -35,19 +35,57 @@ SUPERPLANE_WEBHOOK_SIGNATURE_HEADER = __import__("os").environ.get(
 
 
 def sign_webhook_payload(payload: bytes, secret: str) -> str:
-    """HMAC-SHA256 hex digest, matching SuperPlane's openssl example."""
+    """
+    Compute the HMAC-SHA256 hex digest of the given payload using the provided secret.
+    
+    Parameters:
+        payload (bytes): The message bytes to sign (typically compact JSON encoded as UTF-8).
+        secret (str): The secret key; it is encoded as UTF-8 before computing the HMAC.
+    
+    Returns:
+        str: Hexadecimal string of the HMAC-SHA256 digest.
+    """
     return hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
 
 def severity_for_failure_mode(failure_mode: str | None) -> str:
-    """SLA routing hint: upstream_timeout is P1; others default P2."""
+    """
+    Return an SLA severity hint based on the run's failure mode.
+    
+    Maps the failure_mode "upstream_timeout" to "P1"; any other value (including None) maps to "P2".
+    
+    Parameters:
+        failure_mode (str | None): The run's failure_mode value.
+    
+    Returns:
+        str: "P1" if failure_mode == "upstream_timeout", "P2" otherwise.
+    """
     if failure_mode == "upstream_timeout":
         return "P1"
     return "P2"
 
 
 def build_incident(run: dict[str, Any]) -> dict[str, Any]:
-    """Shape a failed run into the incident event the Canvas consumes."""
+    """
+    Build an incident payload describing a failed pipeline run for the Canvas webhook.
+    
+    Parameters:
+        run (dict): Run record used to populate the incident. Expected keys include
+            job_name, run_id, finished_at, duration_ms, rows_in, error_type,
+            error_message, failure_mode, offending_record, traceback,
+            last_success_at, and recent_changes.
+    
+    Returns:
+        dict: Incident object with fields:
+            - event: fixed value "pipeline.failed"
+            - severity: SLA hint derived from the run's failure_mode
+            - job_name, run_id, failed_at, duration_ms, rows_in
+            - error: object with type, message, failure_mode, offending_record, traceback
+            - memory: recall results used for context
+            - investigation: resolved investigation details
+            - context: metadata and service URLs (last_success_at, recent_changes, service,
+                       heal_endpoint/URL, run/status/incidents URLs)
+    """
     runs = db.recent_runs(200)
     job_name = run.get("job_name") or ""
     heals = db.heal_events(job_name, 200)
@@ -92,6 +130,26 @@ def build_incident(run: dict[str, Any]) -> dict[str, Any]:
 
 
 def emit_incident(run: dict[str, Any]) -> dict[str, Any]:
+    """
+    Builds and delivers a "pipeline.failed" incident for the given run to the SuperPlane Canvas webhook and records delivery status.
+    
+    Parameters:
+        run (dict[str, Any]): Run record used to construct the incident. Must include or allow deriving a `run_id`.
+    
+    Returns:
+        dict: Result of the delivery attempt. Keys:
+            - sent (bool): `True` if the webhook was delivered, `False` otherwise.
+            - reason (str, optional): Failure reason when `sent` is `False`.
+            - status (int, optional): HTTP status code returned by the webhook on success.
+            - attempts (int, optional): Number of attempts performed.
+            - incident (dict): The incident payload that was sent or attempted.
+            - slack (Any, optional): Data returned by `notify_slack(incident)` when delivery succeeds.
+    
+    Side effects:
+        - Persists webhook delivery attempts and final status via `db.save_webhook_delivery`.
+        - May post a Slack notification via `notify_slack` on successful delivery.
+        - Uses `SUPERPLANE_WEBHOOK_URL`, `SUPERPLANE_WEBHOOK_SECRET`, and related configuration to control behavior.
+    """
     incident = build_incident(run)
     run_id = run.get("run_id", "")
 
