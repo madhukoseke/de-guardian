@@ -11,6 +11,7 @@ import json
 import logging
 import threading
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Any, Iterator
 
 from app.config import DATABASE_URL, IS_PRODUCTION
@@ -266,7 +267,12 @@ def record_heal(job_name: str) -> None:
             )
         return
     with _mem_lock:
-        _mem_heals.append({"job_name": job_name})
+        _mem_heals.append(
+            {
+                "job_name": job_name,
+                "healed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            }
+        )
 
 
 def heal_events(job_name: str, limit: int = 100) -> list[dict]:
@@ -359,7 +365,12 @@ def upsert_incident_status(run_id: str, status: str, rca: str | None = None, pay
             )
         return
     with _mem_lock:
-        _mem_incidents[run_id] = {"status": status, "rca": rca, "payload": payload}
+        _mem_incidents[run_id] = {
+            "status": status,
+            "rca": rca,
+            "payload": payload,
+            "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
 
 
 def list_incidents(limit: int = 50) -> list[dict]:
@@ -386,4 +397,13 @@ def list_incidents(limit: int = 50) -> list[dict]:
                 for r in cur.fetchall()
             ]
     with _mem_lock:
-        return list(_mem_incidents.values())[:limit]
+        return [
+            {
+                "run_id": run_id,
+                "status": row.get("status"),
+                "rca": row.get("rca"),
+                "updated_at": row.get("updated_at"),
+                "payload": row.get("payload"),
+            }
+            for run_id, row in list(_mem_incidents.items())[:limit]
+        ]

@@ -25,6 +25,9 @@ AUTO_HEAL_MIN_RATE = float(os.environ.get("AUTO_HEAL_MIN_RATE", "1.0"))
 WEBHOOK_MAX_ATTEMPTS = int(os.environ.get("WEBHOOK_MAX_ATTEMPTS", "3"))
 WEBHOOK_RETRY_BACKOFF_SEC = float(os.environ.get("WEBHOOK_RETRY_BACKOFF_SEC", "1.0"))
 
+# Optional Slack Incoming Webhook for direct incident alerts from the service.
+SLACK_WEBHOOK_URL = (os.environ.get("SLACK_WEBHOOK_URL") or "").strip() or None
+
 RUNS_LIMIT_DEFAULT = 20
 RUNS_LIMIT_MAX = 200
 

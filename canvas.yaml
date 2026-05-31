@@ -1,5 +1,6 @@
 # DE-Guardian: Schema Drift Recovery
-# Replace REPLACE_CLAUDE_INTEGRATION_ID and REPLACE_DE_GUARDIAN_API_KEY before publish.
+# Replace REPLACE_CLAUDE_INTEGRATION_ID, REPLACE_SLACK_INTEGRATION_ID,
+# REPLACE_DE_GUARDIAN_API_KEY, REPLACE_SLACK_CHANNEL_ID, REPLACE_ONCALL_GROUP_ID before publish.
 # Set API_KEY on Render to match REPLACE_DE_GUARDIAN_API_KEY in HTTP nodes.
 
 apiVersion: "v1"
@@ -19,6 +20,29 @@ spec:
         x: 120
         y: 250
       isCollapsed: false
+      paused: false
+
+    - id: "slack-incident-alert"
+      name: "Slack: Incident Alert"
+      type: "TYPE_ACTION"
+      component: "slack.sendTextMessage"
+      configuration:
+        channel: "REPLACE_SLACK_CHANNEL_ID"
+        text: |
+          :rotating_light: *DE-Guardian pipeline failed* ({{ $['Pipeline Failed'].data.body.severity }})
+          *Job:* `{{ $['Pipeline Failed'].data.body.job_name }}`
+          *Run:* `{{ $['Pipeline Failed'].data.body.run_id }}`
+          *Mode:* `{{ $['Pipeline Failed'].data.body.error.failure_mode }}`
+          *Error:* {{ $['Pipeline Failed'].data.body.error.message }}
+          *Memory:* {{ $['Pipeline Failed'].data.body.memory.prior_occurrences }} prior · rate {{ $['Pipeline Failed'].data.body.memory.auto_remediation_success_rate }}
+          *Route:* {{ $['Pipeline Failed'].data.body.investigation.skip_claude == true ? 'memory fast path' : 'Claude investigation' }}
+          *Run URL:* {{ $['Pipeline Failed'].data.body.context.run_url }}
+      position:
+        x: 320
+        y: 80
+      isCollapsed: false
+      integration:
+        id: "REPLACE_SLACK_INTEGRATION_ID"
       paused: false
 
     - id: "severity-router"
@@ -292,6 +316,47 @@ spec:
       isCollapsed: false
       paused: false
 
+    - id: "slack-page-oncall"
+      name: "Slack: Page On-call"
+      type: "TYPE_ACTION"
+      component: "slack.sendTextMessage"
+      configuration:
+        channel: "REPLACE_SLACK_CHANNEL_ID"
+        text: |
+          :x: *DE-Guardian incident rejected — manual intervention required*
+          *Run:* `{{ $['Pipeline Failed'].data.body.run_id }}`
+          *Mode:* `{{ $['Pipeline Failed'].data.body.error.failure_mode }}`
+          *Severity:* {{ $['Pipeline Failed'].data.body.severity }}
+          *Run URL:* {{ $['Pipeline Failed'].data.body.context.run_url }}
+          *Heal URL:* {{ $['Pipeline Failed'].data.body.context.heal_url }}
+      position:
+        x: 2520
+        y: 400
+      isCollapsed: false
+      integration:
+        id: "REPLACE_SLACK_INTEGRATION_ID"
+      paused: false
+
+    - id: "slack-remediated"
+      name: "Slack: Remediated"
+      type: "TYPE_ACTION"
+      component: "slack.sendTextMessage"
+      configuration:
+        channel: "REPLACE_SLACK_CHANNEL_ID"
+        text: |
+          :white_check_mark: *DE-Guardian incident remediated and verified*
+          *Run:* `{{ $['Pipeline Failed'].data.body.run_id }}`
+          *Mode:* `{{ $['Pipeline Failed'].data.body.error.failure_mode }}`
+          *Status:* verified_remediated
+          *Run URL:* {{ $['Pipeline Failed'].data.body.context.run_url }}
+      position:
+        x: 3720
+        y: 50
+      isCollapsed: false
+      integration:
+        id: "REPLACE_SLACK_INTEGRATION_ID"
+      paused: false
+
     - id: "page-oncall"
       name: "Page On-call"
       type: "TYPE_ACTION"
@@ -365,6 +430,9 @@ spec:
 
   edges:
     - sourceId: "pipeline-failed"
+      targetId: "slack-incident-alert"
+      channel: "default"
+    - sourceId: "slack-incident-alert"
       targetId: "severity-router"
       channel: "default"
     - sourceId: "severity-router"
@@ -412,11 +480,17 @@ spec:
     - sourceId: "save-incident"
       targetId: "sync-incident"
       channel: "default"
+    - sourceId: "sync-incident"
+      targetId: "slack-remediated"
+      channel: "default"
     - sourceId: "approval-gate"
       targetId: "save-rejected"
       channel: "rejected"
     - sourceId: "save-rejected"
       targetId: "page-oncall"
+      channel: "default"
+    - sourceId: "page-oncall"
+      targetId: "slack-page-oncall"
       channel: "default"
     - sourceId: "console-reheal"
       targetId: "console-heal-http"

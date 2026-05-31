@@ -25,6 +25,7 @@ from app.config import (
     WEBHOOK_MAX_ATTEMPTS,
     WEBHOOK_RETRY_BACKOFF_SEC,
 )
+from app.notifications.slack import notify_incident as notify_slack
 
 log = logging.getLogger(__name__)
 
@@ -129,6 +130,7 @@ def emit_incident(run: dict[str, Any]) -> dict[str, Any]:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = {"sent": True, "status": resp.status, "attempts": attempt, "incident": incident}
                 db.save_webhook_delivery(run_id, True, None, attempt, incident)
+                result["slack"] = notify_slack(incident)
                 log.info(
                     "webhook delivered",
                     extra={"run_id": run_id, "event": "webhook_sent", "attempt": attempt},

@@ -121,7 +121,7 @@ Canvas outcomes sync back via `POST /incidents/status` (dual-memory: Postgres + 
 
 1. Create an org on [app.superplane.com](https://app.superplane.com).
 2. Click **Launch in SuperPlane** (badge above), or `superplane canvases create --file canvas.yaml`.
-3. Replace placeholders in `canvas.yaml` (`REPLACE_CLAUDE_INTEGRATION_ID`, `REPLACE_DE_GUARDIAN_API_KEY`, `REPLACE_ONCALL_GROUP_ID`).
+3. Replace placeholders in `canvas.yaml` (`REPLACE_CLAUDE_INTEGRATION_ID`, `REPLACE_SLACK_INTEGRATION_ID`, `REPLACE_DE_GUARDIAN_API_KEY`, `REPLACE_SLACK_CHANNEL_ID`, `REPLACE_ONCALL_GROUP_ID`).
 4. Set `REPLACE_CANVAS_ID` in `console.yaml`, then apply.
 5. Copy the **Pipeline Failed** webhook URL → `SUPERPLANE_WEBHOOK_URL` on Render.
 
@@ -139,6 +139,7 @@ See [`.env.example`](./.env.example).
 | `SERVICE_BASE_URL` | Public base URL for heal/run in incident payload |
 | `DATABASE_URL` | Render Postgres (optional locally) |
 | `MEMORY_SKIP_CLAUDE_MIN_RATE` | Min success rate to skip Claude (default 0.5) |
+| `SLACK_WEBHOOK_URL` | Optional Slack Incoming Webhook for direct incident alerts |
 | `RENDER_SERVICE_NAME` | Service label in incidents |
 
 ## API
