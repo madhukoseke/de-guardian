@@ -118,35 +118,3 @@ See [`.env.example`](./.env.example).
 | POST | `/heal` | clear failure (Canvas calls after approval) |
 | GET | `/status` | current mode + last run |
 | GET | `/runs?limit=` | recent run history |
-
-## Stage demo
-
-1. Print [`run-of-show-card.html`](./run-of-show-card.html) (Letter PDF).
-2. Show [`the-corpse.sh`](./the-corpse.sh) EULOGY — bury the bash script.
-3. Break live: `schema_drift` → SuperPlane Canvas → approve → heal → green run.
-4. Show SuperPlane run history + `GET /runs`.
-
-**3-minute pitch:** Data pipeline incidents still rely on logs, bash, and tribal knowledge. DE-Guardian brings AI investigation, safe remediation, and auditable workflows — built with SuperPlane and Render, designed as reusable workflows you can clone and improve.
-
-## OneAISpace (vision)
-
-OneAISpace is building a **Workflows** layer alongside Tools and Prompts — shareable, forkable operational playbooks. **DE-Guardian: Schema Drift Recovery** is the first workflow concept: trigger, investigation steps, AI analysis, approval gate, audit trail, and rollback plan. No OneAISpace integration in this repo today; the Canvas export is the artifact.
-
-## Repo layout
-
-```
-app/           FastAPI, pipeline simulation, incidents, db
-jobs/          Render cron entrypoint
-canvas-spec.md SuperPlane node graph + Claude prompt
-render.yaml    Blueprint: web + cron + postgres
-the-corpse.sh  Bash script funeral prop
-run-of-show-card.html
-```
-
-## Hackathon prizes
-
-| Track | How DE-Guardian qualifies |
-| --- | --- |
-| Main | Real DataOps incidents, live multi-node workflow |
-| Best Use of AI Agents | Claude RCA with evidence + confidence |
-| Render | Web + Cron + Postgres via blueprint |
