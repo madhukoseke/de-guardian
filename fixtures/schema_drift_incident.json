@@ -16,7 +16,7 @@
       "currency": "USD",
       "txn_amount": 87.19
     },
-    "traceback": "  File \"/Users/madhukoseke/Documents/Projects/superplane_hakathon_sfo/scripts/export_incident_fixture.py\", line 25, in <module>\n    main()\n  File \"/Users/madhukoseke/Documents/Projects/superplane_hakathon_sfo/scripts/export_incident_fixture.py\", line 17, in main\n    result = run_pipeline(mode=\"schema_drift\", last_success_at=\"2026-05-29T06:00:00Z\")\n  File \"/Users/madhukoseke/Documents/Projects/superplane_hakathon_sfo/app/pipeline.py\", line 197, in run_pipeline\n    traceback=\"\".join(traceback.format_stack(limit=4)),\n"
+    "traceback": "  File \"app/main.py\", line 71, in run\n    result = run_pipeline(mode=STATE[\"mode\"], last_success_at=db.last_success_at())\n  File \"app/pipeline.py\", line 197, in run_pipeline\n    traceback=\"\".join(traceback.format_stack(limit=4)),\n"
   },
   "context": {
     "last_success_at": "2026-05-29T06:00:00Z",

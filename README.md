@@ -2,11 +2,11 @@
 
 [![Launch in SuperPlane](http://superplane.com/badges/launch-in-superplane.svg)](http://app.superplane.com/install?repo=github.com/madhukoseke/de-guardian)
 
-**SuperPlane Hackathon 2026** · *Bash Script Funeral /w Render* · **Track 1: Canvas + Console**
+**SuperPlane Hackathon 2026** · **Track 1: Canvas + Console**
 
 AI-powered incident response for data pipelines. A simulated fintech job (`daily_revenue_aggregation`) fails on cue with realistic DataOps incidents. On failure it emits a rich event to a **SuperPlane Canvas**, where a Claude agent investigates root cause, a human approves remediation, and the pipeline self-heals — every step logged.
 
-This repo is the **service side**. The Canvas workflow is specified in [`canvas-spec.md`](./canvas-spec.md).
+This repo is the **service side**. The Canvas workflow is defined in [`canvas.yaml`](./canvas.yaml).
 
 ## Architecture
 
@@ -53,17 +53,13 @@ No `DATABASE_URL`? In-memory store. No `SUPERPLANE_WEBHOOK_URL`? Incident JSON i
 | `type_mismatch` | `'N/A'` can't cast to numeric |
 | `duplicate_pk` | duplicate `transaction_id` on load |
 
-**Live demo:** `schema_drift` — the agent correlates the error to the "source-api v3" commit from `recent_changes`.
-
-## Repository
-
-https://github.com/madhukoseke/de-guardian
+Demo scenario: `schema_drift` — the agent correlates the error to the "source-api v3" commit from `recent_changes`.
 
 ## Deploy to Render
 
 1. Repo is on GitHub (public for judges). See [`RENDER_DEPLOY.md`](./RENDER_DEPLOY.md).
 2. Render: **New + → Blueprint** → connect repo. [`render.yaml`](./render.yaml) provisions Web + Cron + Postgres.
-3. Create the SuperPlane **Webhook** trigger (see `canvas-spec.md`); copy its URL.
+3. Create the SuperPlane **Webhook** trigger (see [`CANVAS_SETUP.md`](./CANVAS_SETUP.md)); copy its URL.
 4. Set on **web** and **cron** services:
    - `SUPERPLANE_WEBHOOK_URL` — Canvas webhook URL
    - `SERVICE_BASE_URL` — e.g. `https://bash-script-funeral.onrender.com` (for Canvas heal step)
@@ -77,7 +73,6 @@ This repo follows the [preview-env-digitalocean](https://github.com/superplanehq
 | --- | --- |
 | [`canvas.yaml`](./canvas.yaml) | Webhook → Claude → Approval → Heal → Memory |
 | [`console.yaml`](./console.yaml) | Incident table + re-run from Console |
-| [`HACKATHON.md`](./HACKATHON.md) | Official hackathon rules (from gist) |
 
 ### Import
 
@@ -93,7 +88,7 @@ superplane canvases create --file canvas.yaml
 4. Set `REPLACE_CANVAS_ID` in `console.yaml`, then apply console in UI or CLI
 5. Copy Webhook URL from **Pipeline Failed** node → `SUPERPLANE_WEBHOOK_URL` on Render
 
-Build incrementally in UI if import fails — see [`CANVAS_SETUP.md`](./CANVAS_SETUP.md) and [`canvas-spec.md`](./canvas-spec.md).
+Build incrementally in UI if import fails — see [`CANVAS_SETUP.md`](./CANVAS_SETUP.md).
 
 ## Environment variables
 
