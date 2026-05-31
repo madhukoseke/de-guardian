@@ -3,11 +3,8 @@ daily_revenue_aggregation — a simulated fintech data pipeline.
 
 In healthy mode it pulls synthetic transactions, aggregates revenue per
 merchant, and "loads" the result. Each failure mode reproduces a real,
-recognizable data-engineering incident so the SuperPlane agent has
-something concrete to investigate.
-
-This is the script we are burying at the funeral. It is intentionally the
-kind of fragile glue job every data team has cron'd somewhere.
+recognizable data-engineering incident so the agent has something concrete
+to investigate.
 """
 
 from __future__ import annotations

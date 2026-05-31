@@ -1,11 +1,10 @@
 """
-Run-history store. Uses Render Postgres when DATABASE_URL is set (your 2nd
-Render Service), and falls back to an in-memory list so the app still runs
-locally with zero setup.
+Run-history store, and the source the incident memory is derived from. Uses
+Render Postgres when DATABASE_URL is set, and falls back to an in-memory list
+so the app runs locally with zero setup.
 
-The full run history is your audit trail — show it on stage as proof that
-the agent's actions are logged and queryable, which is the whole SuperPlane
-"safe agents near prod" thesis.
+The full run history is the audit trail: every agent action is logged and
+queryable, and app.memory reads it back to give the agent a track record.
 """
 
 from __future__ import annotations

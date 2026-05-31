@@ -35,7 +35,10 @@ spec:
           Return STRICT JSON only, no markdown fences, with keys:
           root_cause, evidence (array), blast_radius, correlated_change, recommended_remediation,
           remediation_is_safe_to_automate (boolean), confidence (low|medium|high), runbook (array).
-          Tie failures to recent_changes when one fits. Be conservative on automation.
+          Tie failures to recent_changes when one fits.
+          Weigh event.memory: a high auto_remediation_success_rate over several prior_occurrences
+          justifies automation and higher confidence; a novel failure (zero prior_occurrences)
+          should stay conservative and prefer human review.
         prompt: |
           Event:
           {{ root().data.body }}

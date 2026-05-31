@@ -1,8 +1,7 @@
 """
-Cron entrypoint — this is the scheduled "daily" run of the pipeline, deployed
-as a Render Cron Job (your 3rd Render Service). It calls the same pipeline
-logic and emits an incident to SuperPlane if the run fails, so a failure that
-happens at 6am unattended still kicks off the agent investigation.
+Cron entrypoint — the scheduled "daily" run, deployed as a Render Cron Job. It
+runs the same pipeline logic and emits an incident on failure, so an unattended
+6am break still kicks off the agent investigation.
 
 Run: python -m jobs.scheduled_run
 """

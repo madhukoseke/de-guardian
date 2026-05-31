@@ -18,6 +18,16 @@
     },
     "traceback": "  File \"app/main.py\", line 71, in run\n    result = run_pipeline(mode=STATE[\"mode\"], last_success_at=db.last_success_at())\n  File \"app/pipeline.py\", line 197, in run_pipeline\n    traceback=\"\".join(traceback.format_stack(limit=4)),\n"
   },
+  "memory": {
+    "prior_occurrences": 3,
+    "history": [
+      {"run_id": "run_a1b2c3d4e5", "failed_at": "2026-05-28T06:00:11Z", "error_type": "SchemaDrift", "remediated": true},
+      {"run_id": "run_f6a7b8c9d0", "failed_at": "2026-05-29T06:00:09Z", "error_type": "SchemaDrift", "remediated": true},
+      {"run_id": "run_112233aabb", "failed_at": "2026-05-30T06:00:13Z", "error_type": "SchemaDrift", "remediated": true}
+    ],
+    "auto_remediation_success_rate": 1.0,
+    "note": "schema_drift has self-healed 3/3 times — strong track record; safe to automate."
+  },
   "context": {
     "last_success_at": "2026-05-29T06:00:00Z",
     "recent_changes": [

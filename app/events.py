@@ -2,7 +2,8 @@
 On a failed run, emit a rich incident event to the SuperPlane Canvas webhook
 trigger (set SUPERPLANE_WEBHOOK_URL). The payload carries everything the Claude
 component needs to produce a real root-cause analysis — logs, the offending
-record, recent changes, and the last successful run.
+record, recent changes, the last successful run, and the incident memory
+(prior occurrences of this failure and how often they self-healed).
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ import json
 import urllib.error
 import urllib.request
 from typing import Any
+
+from app import db, memory
 
 SUPERPLANE_WEBHOOK_URL = os.environ.get("SUPERPLANE_WEBHOOK_URL")
 SUPERPLANE_WEBHOOK_SECRET = (os.environ.get("SUPERPLANE_WEBHOOK_SECRET") or "").strip() or None
@@ -45,6 +48,12 @@ def build_incident(run: dict[str, Any]) -> dict[str, Any]:
             "offending_record": run.get("offending_record"),
             "traceback": run.get("traceback"),
         },
+        "memory": memory.recall(
+            run.get("failure_mode"),
+            run.get("job_name"),
+            db.recent_runs(200),
+            exclude_run_id=run.get("run_id"),
+        ),
         "context": {
             "last_success_at": run.get("last_success_at"),
             "recent_changes": run.get("recent_changes"),

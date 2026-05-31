@@ -1,14 +1,14 @@
 """
-SuperPlane "Bash Script Funeral" demo — control surface for the pipeline.
+DE-Guardian — control surface for the simulated pipeline.
 
-Endpoints (all designed for a live stage demo):
   GET  /            -> status + quick links
   GET  /health      -> Render health check
-  POST /run         -> run the pipeline once (emits an incident to SuperPlane on failure)
-  POST /break       -> arm a failure mode, e.g. ?mode=schema_drift   (break it live)
-  POST /heal        -> clear failure mode (this is what the Canvas calls after approval)
+  POST /run         -> run the pipeline once (emits an incident on failure)
+  POST /break       -> arm a failure mode, e.g. ?mode=schema_drift
+  POST /heal        -> clear failure mode (the Canvas calls this after approval)
   GET  /status      -> current mode + last run
   GET  /runs        -> recent run history (the audit trail)
+  GET  /memory      -> incident memory for a failure mode (what the agent recalls)
   GET  /modes       -> list available failure modes
 """
 
@@ -20,9 +20,9 @@ from fastapi.responses import JSONResponse
 
 from app.pipeline import run_pipeline, FAILURE_MODES, JOB_NAME
 from app.events import emit_incident
-from app import db
+from app import db, memory
 
-app = FastAPI(title="Bash Script Funeral — Pipeline Demo", version="1.0.0")
+app = FastAPI(title="DE-Guardian — Pipeline Incident Investigator", version="1.0.0")
 
 # In-process state: which failure mode is currently armed ("healthy" = none).
 STATE = {"mode": "healthy", "last_run": None}
@@ -33,7 +33,7 @@ def root():
     return {
         "service": JOB_NAME,
         "armed_mode": STATE["mode"],
-        "endpoints": ["/run", "/break?mode=", "/heal", "/status", "/runs", "/modes", "/health"],
+        "endpoints": ["/run", "/break?mode=", "/heal", "/status", "/runs", "/memory?mode=", "/modes", "/health"],
         "webhook_configured": bool(os.environ.get("SUPERPLANE_WEBHOOK_URL")),
         "webhook_signature_configured": bool(os.environ.get("SUPERPLANE_WEBHOOK_SECRET")),
     }
@@ -92,3 +92,10 @@ def status():
 @app.get("/runs")
 def runs(limit: int = 20):
     return {"runs": db.recent_runs(limit)}
+
+
+@app.get("/memory")
+def recall_memory(mode: str = Query(..., description="A failure mode key from /modes")):
+    """What the agent recalls about a failure mode: prior occurrences and how
+    often the next run recovered. This block is embedded in every incident."""
+    return memory.recall(mode, JOB_NAME, db.recent_runs(200))

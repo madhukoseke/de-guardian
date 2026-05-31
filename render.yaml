@@ -1,13 +1,10 @@
-# Render Blueprint — defines THREE Render Services in one file.
-# The Render partner track needs at least two; this gives you:
-#   1) a Web Service   (the pipeline control surface / demo API)
-#   2) a Cron Job      (the scheduled "daily" pipeline run)
-#   3) a Postgres DB   (the queryable run-history / audit trail)
+# Render Blueprint — three services in one file:
+#   1) Web Service   — the pipeline control surface
+#   2) Cron Job      — the scheduled "daily" run
+#   3) Postgres DB   — run history / audit trail (incident memory reads from it)
 #
-# Deploy: push this repo to GitHub, then in the Render dashboard:
-#   New + -> Blueprint -> connect the repo. Render reads render.yaml and
-#   provisions everything. Set SUPERPLANE_WEBHOOK_URL on the web service +
-#   cron job after you create the Canvas trigger.
+# Deploy: push to GitHub, then Render dashboard → New + → Blueprint → connect repo.
+# Set SUPERPLANE_WEBHOOK_URL on the web + cron services after creating the Canvas trigger.
 
 databases:
   - name: pipeline-runs-db

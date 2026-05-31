@@ -40,8 +40,9 @@ curl -X POST "$BASE/run"   # incident_emitted: true
 After approving in SuperPlane:
 
 ```bash
-curl -X POST "$BASE/run"   # should succeed
+curl -X POST "$BASE/run"                    # should succeed
 curl "$BASE/runs?limit=5"
+curl "$BASE/memory?mode=schema_drift"        # track record grows as incidents recover
 ```
 
 ## Troubleshooting
