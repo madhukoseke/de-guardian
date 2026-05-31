@@ -20,6 +20,14 @@ log = logging.getLogger(__name__)
 
 
 def main() -> int:
+    """
+    Run the scheduled daily pipeline, persist its results, log and print a summary, and emit an incident if the run fails.
+    
+    Initializes the database (enabling strict mode when DATABASE_URL is set), determines the pipeline armed mode from the database (allowing PIPELINE_MODE to override it unless set to "healthy"), executes the pipeline run, saves the run record, and logs/prints a concise completion summary. If the run status is "failed", emits an incident to SuperPlane and prints error and webhook-emission details.
+    
+    Returns:
+        int: Exit code where 0 indicates success and 1 indicates the pipeline run failed.
+    """
     db.init_db(strict=bool(os.environ.get("DATABASE_URL")))
     mode = db.get_armed_mode(JOB_NAME)
     if os.environ.get("PIPELINE_MODE") and os.environ.get("PIPELINE_MODE") != "healthy":

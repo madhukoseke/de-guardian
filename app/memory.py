@@ -23,7 +23,26 @@ def recall(
     *,
     heal_events: list[dict] | None = None,
 ) -> dict[str, Any]:
-    """Summarise prior incidents of this failure mode from run history."""
+    """
+    Provide a summary of prior failed runs that match the given failure mode and job, including whether those failures were later remediated.
+    
+    Builds a reverse-chronological history of matching failed runs (excluding `exclude_run_id` when given), marks each entry's `remediated` flag when a subsequent successful run occurs after a qualifying heal event, computes the auto-remediation success rate, and returns a short note describing prior incident frequency and recovery behavior.
+    
+    Parameters:
+        exclude_run_id (str | None): A run_id to exclude from consideration (commonly the current run).
+        heal_events (list[dict] | None): List of `/heal` events; each event should include at least `job_name` and `healed_at`. A failure is considered remediated only if a heal event for the same job occurs after the failure and a later successful run finishes at or after that heal time.
+    
+    Returns:
+        dict[str, Any]: A dictionary with keys:
+            - prior_occurrences (int): Number of matching prior failed runs.
+            - history (list[dict]): Up to the last five matching failures, each with:
+                - run_id (str | None)
+                - failed_at (str | None)
+                - error_type (str | None)
+                - remediated (bool): True when a later success followed a qualifying heal event.
+            - auto_remediation_success_rate (float | None): remediated_count / prior_occurrences rounded to 2 decimals, or None if no occurrences.
+            - note (str): Human-readable summary about prior incidents and remediation rate.
+    """
     if not failure_mode:
         return {
             "prior_occurrences": 0,
@@ -70,7 +89,18 @@ def _was_remediated(
     job_name: str | None,
     heal_events: list[dict],
 ) -> bool:
-    """True only if /heal was applied before the next successful run."""
+    """
+    Determine whether a failed run was remediated by a later `/heal` event followed by a subsequent successful run for the same job.
+    
+    Parameters:
+        failure (dict): The failed run record; its `"finished_at"` timestamp is used as the failure time.
+        later_runs (list[dict]): Subsequent run records to search for a successful run for `job_name`.
+        job_name (str | None): Job name to match against heal events and later runs.
+        heal_events (list[dict]): Heal event records; each should include `"job_name"` and `"healed_at"`.
+    
+    Returns:
+        bool: `True` if there exists a heal event for `job_name` with `"healed_at"` after the failure and at least one later run for the same `job_name` with `"status" == "success"` and `"finished_at"` greater than or equal to the earliest such heal; `False` otherwise.
+    """
     failure_at = failure.get("finished_at") or ""
     heals_after = [
         h for h in heal_events
@@ -90,7 +120,28 @@ def _was_remediated(
 
 
 def build_cached_rca(run: dict[str, Any], recall_result: dict[str, Any]) -> dict[str, Any]:
-    """Deterministic RCA from run evidence and memory track record (no LLM)."""
+    """
+    Builds a deterministic RCA payload using run-level evidence and incident memory.
+    
+    Uses fields from `run` (error type/message, failure_mode, offending_record, job_name, rows_in, recent_changes) and metrics from `recall_result` (prior occurrences, auto-remediation success rate, note) to produce a deterministic, non-LLM RCA suitable for automation decisions.
+    
+    Parameters:
+        run (dict): Run-level evidence and metadata used to populate RCA fields (expects keys like `failure_mode`, `error_type`, `error_message`, `offending_record`, `job_name`, `rows_in`, `recent_changes`).
+        recall_result (dict): Incident memory summary produced by `recall`, used to determine `confidence`, `remediation_is_safe_to_automate`, and `memory_note` (expects keys like `prior_occurrences`, `auto_remediation_success_rate`, `note`).
+    
+    Returns:
+        dict: RCA object with the following notable keys:
+            - root_cause: Human-readable root cause description (from FAILURE_MODES or a fallback).
+            - evidence: List of evidence strings (error.type, error.message, memory note, optional offending_record JSON).
+            - blast_radius: Human-readable blast radius string.
+            - correlated_change: A recent change correlated to the failure_mode, or None.
+            - recommended_remediation: Fixed remediation instruction referencing POST /heal and re-run.
+            - remediation_is_safe_to_automate: Boolean indicating whether automation is considered safe.
+            - confidence: One of "low", "medium", or "high" describing confidence in automation.
+            - runbook: List of concise runbook steps for operators.
+            - source: Set to "memory".
+            - memory_note: The human-readable note from `recall_result`.
+    """
     failure_mode = run.get("failure_mode") or "unknown"
     error = {
         "type": run.get("error_type"),
@@ -151,7 +202,31 @@ def resolve(
     recall_result: dict[str, Any] | None = None,
     heal_events: list[dict] | None = None,
 ) -> dict[str, Any]:
-    """Decide whether Claude is needed or memory can supply the RCA."""
+    """
+    Decide whether a cached memory-based RCA can be used instead of invoking Claude.
+    
+    Parameters:
+        run (dict): The current run record (must include at least `job_name`, `run_id`, and `failure_mode`).
+        runs (list[dict]): Full run history used by `recall` when `recall_result` is not provided.
+        recall_result (dict | None): Optional precomputed recall result; if omitted the function calls
+            `recall(...)` using `run`, `runs`, and `heal_events`.
+        heal_events (list[dict] | None): Optional list of heal events passed through to `recall` to
+            influence remediation detection; treated as empty when `None`.
+    
+    Returns:
+        dict: If prior occurrences meet the configured automation threshold returns:
+            {
+                "source": "memory",
+                "skip_claude": True,
+                "rca": <dict> ,            # deterministic RCA built from memory
+                "rca_json": <str>         # compact JSON serialization of `rca`
+            }
+        Otherwise returns:
+            {
+                "source": "claude_required",
+                "skip_claude": False
+            }
+    """
     job_name = run.get("job_name")
     recall_result = recall_result or recall(
         run.get("failure_mode"),
@@ -177,6 +252,20 @@ def resolve(
 
 
 def _correlated_change(failure_mode: str, recent_changes: list[dict]) -> dict | None:
+    """
+    Selects a recent change record from recent_changes that appears correlated with the given failure mode.
+    
+    For "schema_drift" this prefers the first change whose message contains "schema" (case-insensitive) or "v3".
+    For "null_violation" this prefers the first change whose message contains "not null" (case-insensitive).
+    If no targeted match is found, returns the most recent change. If recent_changes is empty, returns None.
+    
+    Parameters:
+        failure_mode (str): Failure mode identifier used to select heuristics.
+        recent_changes (list[dict]): Ordered list of change records; each record is expected to include a "message" string.
+    
+    Returns:
+        dict | None: The selected change record when available, otherwise None.
+    """
     if not recent_changes:
         return None
     if failure_mode == "schema_drift":
@@ -191,6 +280,17 @@ def _correlated_change(failure_mode: str, recent_changes: list[dict]) -> dict | 
 
 
 def _note(failure_mode: str, occurrences: int, rate: float | None) -> str:
+    """
+    Produce a concise human-readable note summarizing prior incident frequency and observed auto-remediation effectiveness for a given failure mode.
+    
+    Parameters:
+        failure_mode (str): The failure mode identifier to describe.
+        occurrences (int): Number of prior incidents observed for this failure mode.
+        rate (float | None): Fraction between 0.0 and 1.0 representing observed auto-remediation success rate, or `None` if no successful recoveries have been observed.
+    
+    Returns:
+        str: A brief note describing whether the failure mode is novel, seen before with no recoveries, has fully self-healed historically, or the percentage success of auto-remediation and associated guidance.
+    """
     if occurrences == 0:
         return f"No prior {failure_mode} incidents on record — treat as novel; prefer human review."
     if rate is None:

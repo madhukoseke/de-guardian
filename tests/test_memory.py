@@ -4,6 +4,19 @@ from app import memory
 
 
 def _run(run_id, status, failure_mode=None, finished_at="2026-01-02T00:00:00Z", source="web"):
+    """
+    Create a test run dictionary for the `daily_revenue_aggregation` job with the supplied attributes.
+    
+    Parameters:
+        run_id (str): Unique identifier for the run.
+        status (str): Run status (e.g., "success", "failed").
+        failure_mode (str | None): Optional failure mode identifier when status is "failed".
+        finished_at (str): ISO 8601 timestamp when the run finished; defaults to "2026-01-02T00:00:00Z".
+        source (str): Origin of the run (e.g., "web", "cron"); defaults to "web".
+    
+    Returns:
+        dict: A mapping with keys `run_id`, `job_name`, `status`, `failure_mode`, `finished_at`, and `source`.
+    """
     return {
         "run_id": run_id,
         "job_name": "daily_revenue_aggregation",

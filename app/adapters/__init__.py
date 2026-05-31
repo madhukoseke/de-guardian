@@ -17,4 +17,16 @@ class PipelineAdapter(Protocol):
         *,
         source: str = "web",
         after_heal: bool = False,
-    ) -> RunResult: ...
+    ) -> RunResult: """
+        Execute a pipeline job and return structured run metadata.
+        
+        Parameters:
+            mode (str): Pipeline execution mode.
+            last_success_at (str | None): ISO-8601 timestamp of the last successful run, or `None` if unavailable.
+            source (str): Origin of the run request (default: "web").
+            after_heal (bool): Whether this run follows a healing process (default: False).
+        
+        Returns:
+            RunResult: Structured metadata about the execution, such as status, timestamps, and any produced metrics.
+        """
+        ...
