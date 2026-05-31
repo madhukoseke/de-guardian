@@ -16,14 +16,14 @@ spec:
           ## Pipeline Incident Investigator
 
 
-          When `daily_revenue_aggregation` fails, the Render demo service POSTs a `pipeline.failed`
-          event to this Canvas. **Claude** investigates, a human **approves**, then **POST /heal**
-          clears the failure mode.
+          When `daily_revenue_aggregation` fails, the Render service POSTs a `pipeline.failed`
+          event to this Canvas. **Memory-first routing** skips Claude for known failures;
+          novel failures go to **Claude**, then on-call **approval**, **heal → verify → record**.
 
 
           | Demo command | Action |
           | --- | --- |
-          | `POST /break?mode=schema_drift` | Arm schema drift |
+          | `POST /break?mode=schema_drift` | Arm schema drift (requires API key in prod) |
           | `POST /run` | Run pipeline (fails + triggers webhook) |
           | `POST /heal` | Remediate (Canvas calls this after approval) |
 
@@ -69,6 +69,7 @@ spec:
               node: console-reheal
               payload:
                 run_url: "{{ run_url }}"
+                heal_url: "{{ heal_url }}"
               template: rerun
               variant: primary
   layout:

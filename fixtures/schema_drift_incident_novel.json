@@ -1,0 +1,59 @@
+{
+  "event": "pipeline.failed",
+  "severity": "P2",
+  "job_name": "daily_revenue_aggregation",
+  "run_id": "run_novel_fixture",
+  "failed_at": "2026-05-30T21:37:56.337372+00:00",
+  "duration_ms": 11,
+  "rows_in": 5000,
+  "error": {
+    "type": "SchemaDrift",
+    "message": "KeyError: 'amount' \u2014 field missing from source payload (found 'txn_amount')",
+    "failure_mode": "schema_drift",
+    "offending_record": {
+      "transaction_id": "c9d368a9-cff4-43ba-8c6a-6fc6bb7d23b0",
+      "merchant": "quiet-store",
+      "currency": "USD",
+      "txn_amount": 87.19
+    },
+    "traceback": "  File \"app/main.py\", line 71, in run\n    result = run_pipeline(mode=STATE[\"mode\"], last_success_at=db.last_success_at())\n  File \"app/pipeline.py\", line 197, in run_pipeline\n    traceback=\"\".join(traceback.format_stack(limit=4)),\n"
+  },
+  "memory": {
+    "prior_occurrences": 0,
+    "history": [],
+    "auto_remediation_success_rate": null,
+    "note": "No prior schema_drift incidents on record \u2014 treat as novel; prefer human review."
+  },
+  "investigation": {
+    "source": "claude_required",
+    "skip_claude": false
+  },
+  "context": {
+    "last_success_at": "2026-05-29T06:00:00Z",
+    "recent_changes": [
+      {
+        "sha": "a3f91c2",
+        "author": "data-platform-bot",
+        "when": "2h ago",
+        "message": "feat(ingest): bump source-api client to v3 (response schema changed)"
+      },
+      {
+        "sha": "7d20e5b",
+        "author": "mkoseke",
+        "when": "yesterday",
+        "message": "chore(dbt): tighten revenue column to NOT NULL"
+      },
+      {
+        "sha": "1c884aa",
+        "author": "ci",
+        "when": "3 days ago",
+        "message": "ops: move daily_revenue_aggregation to 06:00 UTC cron"
+      }
+    ],
+    "service": "local",
+    "heal_endpoint": "/heal",
+    "heal_url": "http://localhost:8000/heal",
+    "run_url": "http://localhost:8000/run",
+    "status_url": "http://localhost:8000/status"
+  }
+}

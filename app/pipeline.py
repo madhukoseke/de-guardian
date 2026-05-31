@@ -78,6 +78,8 @@ class RunResult:
     offending_record: dict = field(default_factory=dict)
     recent_changes: list = field(default_factory=list)
     last_success_at: str | None = None
+    source: str = "web"  # web | cron
+    after_heal: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -154,7 +156,13 @@ def _aggregate(rows: list[dict], mode: str) -> list[dict]:
     return [{"merchant": m, "revenue": round(v, 2)} for m, v in totals.items()]
 
 
-def run_pipeline(mode: str = "healthy", last_success_at: str | None = None) -> RunResult:
+def run_pipeline(
+    mode: str = "healthy",
+    last_success_at: str | None = None,
+    *,
+    source: str = "web",
+    after_heal: bool = False,
+) -> RunResult:
     """Execute one run. `mode` is 'healthy' or a key from FAILURE_MODES."""
     run_id = f"run_{uuid.uuid4().hex[:10]}"
     started = datetime.now(timezone.utc)
@@ -176,6 +184,8 @@ def run_pipeline(mode: str = "healthy", last_success_at: str | None = None) -> R
             rows_in=rows_in,
             rows_out=len(out),
             last_success_at=finished.isoformat(),
+            source=source,
+            after_heal=after_heal,
         )
     except PipelineError as e:
         finished = datetime.now(timezone.utc)
@@ -191,9 +201,11 @@ def run_pipeline(mode: str = "healthy", last_success_at: str | None = None) -> R
             failure_mode=mode,
             error_type=e.error_type,
             error_message=e.message,
-            traceback="".join(traceback.format_stack(limit=4)),
+            traceback=traceback.format_exc(),
             offending_record=e.offending_record,
             recent_changes=RECENT_CHANGES,
             last_success_at=last_success_at
             or (started - timedelta(days=1)).isoformat(),
+            source=source,
+            after_heal=after_heal,
         )

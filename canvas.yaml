@@ -1,7 +1,6 @@
 # DE-Guardian: Schema Drift Recovery
-# Import: superplane canvases create --file canvas.yaml
-# Before apply: replace REPLACE_CLAUDE_INTEGRATION_ID with your Claude integration UUID
-# After publish: copy Webhook URL → SUPERPLANE_WEBHOOK_URL on Render (web + cron)
+# Replace REPLACE_CLAUDE_INTEGRATION_ID and REPLACE_DE_GUARDIAN_API_KEY before publish.
+# Set API_KEY on Render to match REPLACE_DE_GUARDIAN_API_KEY in HTTP nodes.
 
 apiVersion: "v1"
 kind: "Canvas"
@@ -19,6 +18,42 @@ spec:
       position:
         x: 120
         y: 250
+      isCollapsed: false
+      paused: false
+
+    - id: "severity-router"
+      name: "P1 Severity?"
+      type: "TYPE_ACTION"
+      component: "if"
+      configuration:
+        condition: 'root().data.body.severity == "P1"'
+      position:
+        x: 320
+        y: 250
+      isCollapsed: false
+      paused: false
+
+    - id: "known-failure"
+      name: "Known Failure?"
+      type: "TYPE_ACTION"
+      component: "if"
+      configuration:
+        condition: 'root().data.body.investigation.skip_claude == true'
+      position:
+        x: 520
+        y: 350
+      isCollapsed: false
+      paused: false
+
+    - id: "auto-heal-eligible"
+      name: "Auto-heal Eligible?"
+      type: "TYPE_ACTION"
+      component: "if"
+      configuration:
+        condition: 'root().data.body.investigation.rca.remediation_is_safe_to_automate == true'
+      position:
+        x: 920
+        y: 120
       isCollapsed: false
       paused: false
 
@@ -58,7 +93,8 @@ spec:
       component: "approval"
       configuration:
         items:
-          - type: "anyone"
+          - type: "group"
+            groupId: "REPLACE_ONCALL_GROUP_ID"
       position:
         x: 1320
         y: 250
@@ -72,12 +108,58 @@ spec:
       configuration:
         method: "POST"
         url: "{{ $['Pipeline Failed'].data.body.context.heal_url }}"
+        authorization:
+          bearerToken: "REPLACE_DE_GUARDIAN_API_KEY"
         retry:
-          enabled: false
-        timeoutSeconds: 30
+          enabled: true
+          maxAttempts: 3
+        timeoutSeconds: 45
       position:
         x: 1920
         y: 100
+      isCollapsed: false
+      paused: false
+
+    - id: "heal-ok"
+      name: "Heal OK?"
+      type: "TYPE_ACTION"
+      component: "if"
+      configuration:
+        condition: "$['Heal Pipeline'].data.status >= 200 && $['Heal Pipeline'].data.status < 300"
+      position:
+        x: 2220
+        y: 100
+      isCollapsed: false
+      paused: false
+
+    - id: "verify-run"
+      name: "Verify Run"
+      type: "TYPE_ACTION"
+      component: "http"
+      configuration:
+        method: "POST"
+        url: "{{ $['Pipeline Failed'].data.body.context.run_url }}"
+        authorization:
+          bearerToken: "REPLACE_DE_GUARDIAN_API_KEY"
+        retry:
+          enabled: true
+          maxAttempts: 3
+        timeoutSeconds: 45
+      position:
+        x: 2520
+        y: 50
+      isCollapsed: false
+      paused: false
+
+    - id: "verify-ok"
+      name: "Verify OK?"
+      type: "TYPE_ACTION"
+      component: "if"
+      configuration:
+        condition: "$['Verify Run'].data.body.run.status == 'success'"
+      position:
+        x: 2820
+        y: 50
       isCollapsed: false
       paused: false
 
@@ -102,16 +184,77 @@ spec:
           - name: "failed_at"
             value: "{{ $['Pipeline Failed'].data.body.failed_at }}"
           - name: "rca"
-            value: "{{ $['Claude: Investigate'].data.text }}"
+            value: "{{ $['Claude: Investigate']?.data?.text ?? root().data.body.investigation.rca_json }}"
           - name: "status"
-            value: "remediated"
+            value: "verified_remediated"
           - name: "heal_url"
             value: "{{ $['Pipeline Failed'].data.body.context.heal_url }}"
           - name: "run_url"
             value: "{{ $['Pipeline Failed'].data.body.context.run_url }}"
       position:
-        x: 2520
-        y: 100
+        x: 3120
+        y: 50
+      isCollapsed: false
+      paused: false
+
+    - id: "sync-incident"
+      name: "Sync to Service"
+      type: "TYPE_ACTION"
+      component: "http"
+      configuration:
+        method: "POST"
+        url: "{{ $['Pipeline Failed'].data.body.context.incidents_sync_url }}"
+        authorization:
+          bearerToken: "REPLACE_DE_GUARDIAN_API_KEY"
+        body:
+          format: json
+          content: |
+            {
+              "run_id": "{{ $['Pipeline Failed'].data.body.run_id }}",
+              "status": "verified_remediated",
+              "rca": "{{ $['Claude: Investigate']?.data?.text ?? root().data.body.investigation.rca_json }}"
+            }
+        retry:
+          enabled: true
+          maxAttempts: 2
+        timeoutSeconds: 30
+      position:
+        x: 3420
+        y: 50
+      isCollapsed: false
+      paused: false
+
+    - id: "save-heal-failed"
+      name: "Save Heal Failed"
+      type: "TYPE_ACTION"
+      component: "upsertMemory"
+      configuration:
+        namespace: "de-guardian-incidents"
+        matchList:
+          - name: "run_id"
+            value: "{{ $['Pipeline Failed'].data.body.run_id }}"
+        valueList:
+          - name: "run_id"
+            value: "{{ $['Pipeline Failed'].data.body.run_id }}"
+          - name: "job_name"
+            value: "{{ $['Pipeline Failed'].data.body.job_name }}"
+          - name: "failure_mode"
+            value: "{{ $['Pipeline Failed'].data.body.error.failure_mode }}"
+          - name: "severity"
+            value: "{{ $['Pipeline Failed'].data.body.severity }}"
+          - name: "failed_at"
+            value: "{{ $['Pipeline Failed'].data.body.failed_at }}"
+          - name: "rca"
+            value: "{{ $['Claude: Investigate']?.data?.text ?? root().data.body.investigation.rca_json }}"
+          - name: "status"
+            value: "heal_failed"
+          - name: "heal_url"
+            value: "{{ $['Pipeline Failed'].data.body.context.heal_url }}"
+          - name: "run_url"
+            value: "{{ $['Pipeline Failed'].data.body.context.run_url }}"
+      position:
+        x: 2820
+        y: 200
       isCollapsed: false
       paused: false
 
@@ -136,13 +279,34 @@ spec:
           - name: "failed_at"
             value: "{{ $['Pipeline Failed'].data.body.failed_at }}"
           - name: "rca"
-            value: "{{ $['Claude: Investigate'].data.text }}"
+            value: "{{ $['Claude: Investigate']?.data?.text ?? root().data.body.investigation.rca_json }}"
           - name: "status"
             value: "rejected — paging on-call"
+          - name: "heal_url"
+            value: "{{ $['Pipeline Failed'].data.body.context.heal_url }}"
           - name: "run_url"
             value: "{{ $['Pipeline Failed'].data.body.context.run_url }}"
       position:
         x: 1920
+        y: 400
+      isCollapsed: false
+      paused: false
+
+    - id: "page-oncall"
+      name: "Page On-call"
+      type: "TYPE_ACTION"
+      component: "sendEmailNotification"
+      configuration:
+        recipients:
+          - type: "group"
+            groupId: "REPLACE_ONCALL_GROUP_ID"
+        subject: "DE-Guardian: incident {{ $['Pipeline Failed'].data.body.run_id }} rejected"
+        body: |
+          Incident {{ $['Pipeline Failed'].data.body.run_id }} was rejected.
+          Failure mode: {{ $['Pipeline Failed'].data.body.error.failure_mode }}
+          Run URL: {{ $['Pipeline Failed'].data.body.context.run_url }}
+      position:
+        x: 2220
         y: 400
       isCollapsed: false
       paused: false
@@ -161,6 +325,25 @@ spec:
       isCollapsed: false
       paused: false
 
+    - id: "console-heal-http"
+      name: "Console: POST /heal"
+      type: "TYPE_ACTION"
+      component: "http"
+      configuration:
+        method: "POST"
+        url: "{{ root().data.body.heal_url }}"
+        authorization:
+          bearerToken: "REPLACE_DE_GUARDIAN_API_KEY"
+        retry:
+          enabled: true
+          maxAttempts: 3
+        timeoutSeconds: 45
+      position:
+        x: 520
+        y: 550
+      isCollapsed: false
+      paused: false
+
     - id: "console-rerun-http"
       name: "Console: POST /run"
       type: "TYPE_ACTION"
@@ -168,19 +351,40 @@ spec:
       configuration:
         method: "POST"
         url: "{{ root().data.body.run_url }}"
+        authorization:
+          bearerToken: "REPLACE_DE_GUARDIAN_API_KEY"
         retry:
-          enabled: false
-        timeoutSeconds: 30
+          enabled: true
+          maxAttempts: 3
+        timeoutSeconds: 45
       position:
-        x: 720
+        x: 920
         y: 550
       isCollapsed: false
       paused: false
 
   edges:
     - sourceId: "pipeline-failed"
-      targetId: "claude-investigate"
+      targetId: "severity-router"
       channel: "default"
+    - sourceId: "severity-router"
+      targetId: "claude-investigate"
+      channel: "true"
+    - sourceId: "severity-router"
+      targetId: "known-failure"
+      channel: "false"
+    - sourceId: "known-failure"
+      targetId: "auto-heal-eligible"
+      channel: "true"
+    - sourceId: "known-failure"
+      targetId: "claude-investigate"
+      channel: "false"
+    - sourceId: "auto-heal-eligible"
+      targetId: "heal-pipeline"
+      channel: "true"
+    - sourceId: "auto-heal-eligible"
+      targetId: "approval-gate"
+      channel: "false"
     - sourceId: "claude-investigate"
       targetId: "approval-gate"
       channel: "default"
@@ -188,11 +392,35 @@ spec:
       targetId: "heal-pipeline"
       channel: "approved"
     - sourceId: "heal-pipeline"
+      targetId: "heal-ok"
+      channel: "default"
+    - sourceId: "heal-ok"
+      targetId: "verify-run"
+      channel: "true"
+    - sourceId: "heal-ok"
+      targetId: "save-heal-failed"
+      channel: "false"
+    - sourceId: "verify-run"
+      targetId: "verify-ok"
+      channel: "default"
+    - sourceId: "verify-ok"
       targetId: "save-incident"
+      channel: "true"
+    - sourceId: "verify-ok"
+      targetId: "save-heal-failed"
+      channel: "false"
+    - sourceId: "save-incident"
+      targetId: "sync-incident"
       channel: "default"
     - sourceId: "approval-gate"
       targetId: "save-rejected"
       channel: "rejected"
+    - sourceId: "save-rejected"
+      targetId: "page-oncall"
+      channel: "default"
     - sourceId: "console-reheal"
+      targetId: "console-heal-http"
+      channel: "default"
+    - sourceId: "console-heal-http"
       targetId: "console-rerun-http"
       channel: "default"
