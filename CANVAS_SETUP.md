@@ -24,6 +24,8 @@ Webhook → Claude (text prompt) → Approval → HTTP POST heal → upsertMemor
 
 Use the node configuration from [`canvas.yaml`](./canvas.yaml). The webhook payload shape is defined in [`app/events.py`](./app/events.py).
 
+After **Heal Pipeline**, `root()` points at the HTTP response — not the original incident. Memory nodes must reference `$['Pipeline Failed'].data.body.*` for incident fields.
+
 Test without a webhook using **Manual Run** and [`fixtures/schema_drift_incident.json`](./fixtures/schema_drift_incident.json).
 
 ## Troubleshooting

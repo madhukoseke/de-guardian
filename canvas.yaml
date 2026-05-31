@@ -68,7 +68,7 @@ spec:
       component: "http"
       configuration:
         method: "POST"
-        url: "{{ root().data.body.context.heal_url }}"
+        url: "{{ $['Pipeline Failed'].data.body.context.heal_url }}"
         retry:
           enabled: false
         timeoutSeconds: 30
@@ -86,26 +86,26 @@ spec:
         namespace: "de-guardian-incidents"
         matchList:
           - name: "run_id"
-            value: "{{ root().data.body.run_id }}"
+            value: "{{ $['Pipeline Failed'].data.body.run_id }}"
         valueList:
           - name: "run_id"
-            value: "{{ root().data.body.run_id }}"
+            value: "{{ $['Pipeline Failed'].data.body.run_id }}"
           - name: "job_name"
-            value: "{{ root().data.body.job_name }}"
+            value: "{{ $['Pipeline Failed'].data.body.job_name }}"
           - name: "failure_mode"
-            value: "{{ root().data.body.error.failure_mode }}"
+            value: "{{ $['Pipeline Failed'].data.body.error.failure_mode }}"
           - name: "severity"
-            value: "{{ root().data.body.severity }}"
+            value: "{{ $['Pipeline Failed'].data.body.severity }}"
           - name: "failed_at"
-            value: "{{ root().data.body.failed_at }}"
+            value: "{{ $['Pipeline Failed'].data.body.failed_at }}"
           - name: "rca"
             value: "{{ $['Claude: Investigate'].data.text }}"
           - name: "status"
             value: "remediated"
           - name: "heal_url"
-            value: "{{ root().data.body.context.heal_url }}"
+            value: "{{ $['Pipeline Failed'].data.body.context.heal_url }}"
           - name: "run_url"
-            value: "{{ root().data.body.context.run_url }}"
+            value: "{{ $['Pipeline Failed'].data.body.context.run_url }}"
       position:
         x: 2520
         y: 100
@@ -120,24 +120,24 @@ spec:
         namespace: "de-guardian-incidents"
         matchList:
           - name: "run_id"
-            value: "{{ root().data.body.run_id }}"
+            value: "{{ $['Pipeline Failed'].data.body.run_id }}"
         valueList:
           - name: "run_id"
-            value: "{{ root().data.body.run_id }}"
+            value: "{{ $['Pipeline Failed'].data.body.run_id }}"
           - name: "job_name"
-            value: "{{ root().data.body.job_name }}"
+            value: "{{ $['Pipeline Failed'].data.body.job_name }}"
           - name: "failure_mode"
-            value: "{{ root().data.body.error.failure_mode }}"
+            value: "{{ $['Pipeline Failed'].data.body.error.failure_mode }}"
           - name: "severity"
-            value: "{{ root().data.body.severity }}"
+            value: "{{ $['Pipeline Failed'].data.body.severity }}"
           - name: "failed_at"
-            value: "{{ root().data.body.failed_at }}"
+            value: "{{ $['Pipeline Failed'].data.body.failed_at }}"
           - name: "rca"
             value: "{{ $['Claude: Investigate'].data.text }}"
           - name: "status"
             value: "rejected — paging on-call"
           - name: "run_url"
-            value: "{{ root().data.body.context.run_url }}"
+            value: "{{ $['Pipeline Failed'].data.body.context.run_url }}"
       position:
         x: 1920
         y: 400
