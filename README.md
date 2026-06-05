@@ -4,9 +4,9 @@
 
 A data pipeline fails on cue with a realistic incident. It POSTs the failure to a
 [SuperPlane Canvas](./canvas.yaml), where **incident memory is checked first** —
-known failures skip Claude and go straight to approval with a cached RCA. Novel
-failures still go to Claude for investigation, then a human approves, and the
-pipeline self-heals — every step logged.
+known failures with a strong track record skip Claude and use a cached RCA; perfect
+track records can auto-heal. Novel failures go to Claude, then on-call approves,
+heal → verify → record — with Slack alerts at each stage.
 
 The agent doesn't reason from the error alone. Each incident carries an **incident
 memory** block: how often this failure has happened before and how often the run
@@ -29,14 +29,18 @@ This repo is the **service side**. The Canvas workflow lives in [`canvas.yaml`](
 ```mermaid
 flowchart LR
   Demo[FastAPI on Render] -->|pipeline.failed + memory| Webhook[SuperPlane Webhook]
-  Webhook --> If{Known failure?}
+  Webhook --> SlackAlert[Slack alert]
+  SlackAlert --> If{Known failure?}
   If -->|rate ge 0.5| FastPath[Cached RCA]
   If -->|novel| Claude[Claude: Investigate]
-  FastPath --> Approval[On-call Approval]
+  FastPath --> AutoHeal{Perfect track record?}
+  AutoHeal -->|yes| Heal[POST /heal]
+  AutoHeal -->|no| Approval[On-call Approval]
   Claude --> Approval
-  Approval --> Heal[POST /heal]
+  Approval --> Heal
   Heal --> Verify[POST /run verify]
   Verify --> Sync[Sync to Postgres]
+  Sync --> SlackDone[Slack remediated]
   Demo --> PG[(Render Postgres)]
   PG -.recall.-> Demo
 ```
@@ -44,7 +48,7 @@ flowchart LR
 | Layer | Role |
 | --- | --- |
 | **This repo** | Pipeline, auth, incident webhook + retries, memory, heal/verify API |
-| **SuperPlane Canvas** | Memory-first → approve → heal → verify → record + page on reject |
+| **SuperPlane Canvas** | Memory-first → approve/auto-heal → verify → sync + Slack alerts |
 | **Render** | Web Service + Cron Job + Postgres |
 
 ## Quick start
@@ -64,7 +68,21 @@ curl -X POST localhost:8000/heal                        # remediate
 curl localhost:8000/runs                                # audit trail
 ```
 
-Locally, mutating endpoints work without auth unless `API_KEY` is set. On Render, `API_KEY` is required.
+Locally, mutating endpoints work without auth unless `API_KEY` is set. On Render, `API_KEY` is required:
+
+```bash
+export API_KEY=dev-secret   # match REPLACE_DE_GUARDIAN_API_KEY in canvas.yaml
+curl -H "Authorization: Bearer $API_KEY" -X POST localhost:8000/break?mode=schema_drift
+curl -H "Authorization: Bearer $API_KEY" -X POST localhost:8000/run
+```
+
+### Manual Run fixtures (SuperPlane)
+
+| Fixture | Path |
+| --- | --- |
+| Known failure (memory fast path) | [`fixtures/schema_drift_incident.json`](./fixtures/schema_drift_incident.json) |
+| Novel failure (Claude path) | [`fixtures/schema_drift_incident_novel.json`](./fixtures/schema_drift_incident_novel.json) |
+| Cloud Manual Run (public URLs) | [`fixtures/schema_drift_incident_cloud.json`](./fixtures/schema_drift_incident_cloud.json) |
 
 ## Failure modes (`GET /modes`)
 
@@ -102,7 +120,8 @@ Canvas outcomes sync back via `POST /incidents/status` (dual-memory: Postgres + 
 | Webhooks | 3× retry, idempotency key, delivery audit in Postgres |
 | State | Armed mode + heal events persisted in Postgres (web + cron share) |
 | Canvas | Verify-after-heal, HTTP retries, heal-failure branch, on-call approval |
-| Tests | `pytest` — memory, events, API (`tests/`) |
+| Slack | Service webhook (`SLACK_WEBHOOK_URL`) + canvas nodes (incident, reject, remediated) |
+| Tests | `pytest` — memory, events, API, Slack, DB (`tests/`) |
 | CI | GitHub Actions on push/PR |
 
 ## Deploy to Render
@@ -110,7 +129,7 @@ Canvas outcomes sync back via `POST /incidents/status` (dual-memory: Postgres + 
 1. Push to GitHub (public for judges). See [`RENDER_DEPLOY.md`](./RENDER_DEPLOY.md).
 2. Render **New + → Blueprint** → connect repo. [`render.yaml`](./render.yaml) provisions Web + Cron + Postgres.
 3. Create the SuperPlane **Webhook** trigger ([`CANVAS_SETUP.md`](./CANVAS_SETUP.md)); copy its URL.
-4. On the **web** and **cron** services set: `API_KEY`, `SUPERPLANE_WEBHOOK_URL`, `SUPERPLANE_WEBHOOK_SECRET`, `SERVICE_BASE_URL`. `DATABASE_URL` is auto-linked.
+4. On the **web** and **cron** services set: `API_KEY`, `SUPERPLANE_WEBHOOK_URL`, `SUPERPLANE_WEBHOOK_SECRET`, `SERVICE_BASE_URL`. Optional: `SLACK_WEBHOOK_URL`. `DATABASE_URL` is auto-linked.
 
 ## SuperPlane import
 
