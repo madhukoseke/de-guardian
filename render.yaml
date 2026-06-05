@@ -33,6 +33,10 @@ services:
         sync: false   # HMAC key from the Pipeline Failed node (Reset Signature Key)
       - key: SERVICE_BASE_URL
         sync: false   # e.g. https://bash-script-funeral.onrender.com
+      - key: API_KEY
+        sync: false   # same value as REPLACE_DE_GUARDIAN_API_KEY in canvas HTTP nodes
+      - key: SLACK_WEBHOOK_URL
+        sync: false   # optional Slack Incoming Webhook for direct incident alerts
       - key: RENDER_SERVICE_NAME
         value: bash-script-funeral
 
@@ -56,5 +60,11 @@ services:
         sync: false
       - key: SERVICE_BASE_URL
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: RENDER_SERVICE_NAME
+        value: bash-script-funeral
       - key: PIPELINE_MODE
         value: healthy   # arm a failure here to demo an unattended 6am break

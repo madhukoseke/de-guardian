@@ -96,12 +96,12 @@
         "message": "ops: move daily_revenue_aggregation to 06:00 UTC cron"
       }
     ],
-    "service": "local",
+    "service": "bash-script-funeral",
     "heal_endpoint": "/heal",
-    "heal_url": "http://localhost:8000/heal",
-    "run_url": "http://localhost:8000/run",
-    "status_url": "http://localhost:8000/status",
-    "incidents_url": "http://localhost:8000/incidents",
-    "incidents_sync_url": "http://localhost:8000/incidents/status"
+    "heal_url": "https://bash-script-funeral.onrender.com/heal",
+    "run_url": "https://bash-script-funeral.onrender.com/run",
+    "status_url": "https://bash-script-funeral.onrender.com/status",
+    "incidents_url": "https://bash-script-funeral.onrender.com/incidents",
+    "incidents_sync_url": "https://bash-script-funeral.onrender.com/incidents/status"
   }
 }

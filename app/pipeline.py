@@ -78,8 +78,16 @@ class RunResult:
     offending_record: dict = field(default_factory=dict)
     recent_changes: list = field(default_factory=list)
     last_success_at: str | None = None
+    source: str = "web"  # web | cron
+    after_heal: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        """
+        Serialize the RunResult into a plain dictionary.
+        
+        Returns:
+            dict[str, Any]: A mapping of the RunResult's field names to their corresponding values.
+        """
         return asdict(self)
 
 
@@ -97,7 +105,26 @@ def _synthetic_transactions(n: int = 5000) -> list[dict]:
 
 
 def _aggregate(rows: list[dict], mode: str) -> list[dict]:
-    """Transform step. Each failure mode breaks here in a realistic way."""
+    """
+    Aggregate transaction amounts by merchant and optionally simulate failure modes.
+    
+    Parameters:
+        rows (list[dict]): Input transaction records, each expected to contain 'transaction_id', 'merchant', and 'amount'.
+        mode (str): Failure mode to simulate. Supported values:
+            - "healthy": perform aggregation normally.
+            - "upstream_timeout": simulate an upstream API timeout.
+            - "schema_drift": simulate a source schema change (amount renamed to txn_amount).
+            - "null_violation": inject a null into an amount to simulate a NOT NULL constraint violation.
+            - "type_mismatch": inject a non-numeric amount to simulate a type cast error.
+            - "duplicate_pk": append a duplicate transaction to simulate a primary key conflict.
+    
+    Returns:
+        list[dict]: Aggregated revenue per merchant as dictionaries with keys "merchant" and "revenue" (rounded to 2 decimals).
+    
+    Raises:
+        PipelineError: Raised when `mode` is one of the failure modes listed above; the exception's `error_type`,
+                       `message`, and `offending_record` provide structured context for the simulated failure.
+    """
     # --- inject the failure exactly where a real pipeline would break ---
     if mode == "upstream_timeout":
         raise PipelineError(
@@ -154,8 +181,27 @@ def _aggregate(rows: list[dict], mode: str) -> list[dict]:
     return [{"merchant": m, "revenue": round(v, 2)} for m, v in totals.items()]
 
 
-def run_pipeline(mode: str = "healthy", last_success_at: str | None = None) -> RunResult:
-    """Execute one run. `mode` is 'healthy' or a key from FAILURE_MODES."""
+def run_pipeline(
+    mode: str = "healthy",
+    last_success_at: str | None = None,
+    *,
+    source: str = "web",
+    after_heal: bool = False,
+) -> RunResult:
+    """
+    Run a single simulated pipeline execution and produce a RunResult summarizing the outcome.
+    
+    Parameters:
+        mode (str): Either "healthy" or one of the keys from FAILURE_MODES to simulate a specific failure.
+        last_success_at (str | None): ISO 8601 timestamp of the previous successful run; used as the `last_success_at`
+            value in a failed RunResult when provided. If omitted, a default of 24 hours before this run's start is used on failure.
+        source (str): Execution origin, e.g. "web" or "cron"; stored on the returned RunResult.
+        after_heal (bool): Whether this run was executed as an after-heal attempt; stored on the returned RunResult.
+    
+    Returns:
+        RunResult: A dataclass instance containing run identifiers, timing, row counts, and — if the run failed —
+        structured failure details (failure_mode, error_type, error_message, traceback, offending_record) along with recent_changes and last_success_at.
+    """
     run_id = f"run_{uuid.uuid4().hex[:10]}"
     started = datetime.now(timezone.utc)
     t0 = time.perf_counter()
@@ -176,6 +222,8 @@ def run_pipeline(mode: str = "healthy", last_success_at: str | None = None) -> R
             rows_in=rows_in,
             rows_out=len(out),
             last_success_at=finished.isoformat(),
+            source=source,
+            after_heal=after_heal,
         )
     except PipelineError as e:
         finished = datetime.now(timezone.utc)
@@ -191,9 +239,11 @@ def run_pipeline(mode: str = "healthy", last_success_at: str | None = None) -> R
             failure_mode=mode,
             error_type=e.error_type,
             error_message=e.message,
-            traceback="".join(traceback.format_stack(limit=4)),
+            traceback=traceback.format_exc(),
             offending_record=e.offending_record,
             recent_changes=RECENT_CHANGES,
             last_success_at=last_success_at
             or (started - timedelta(days=1)).isoformat(),
+            source=source,
+            after_heal=after_heal,
         )
